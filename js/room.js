@@ -38,25 +38,46 @@ document.addEventListener('DOMContentLoaded', () => {
     let connectionAttempts = 0;
     const MAX_CONNECTION_ATTEMPTS = 3;
 
-    // Generate a unique peer ID for the joiner
-    const joinerId = `${roomId}-${Math.random().toString(36).substr(2, 9)}`;
+    // Generate a unique peer ID
+    const peerId = roomId + (Math.random().toString(36).substring(2, 15));
 
-    // Initialize PeerJS with improved configuration
-    const peer = new Peer(peer.id !== roomId ? joinerId : roomId, {
+    // Initialize PeerJS with multiple STUN/TURN servers
+    const peer = new Peer(peerId, {
         config: {
-            'iceServers': [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
+            iceServers: [
+                // Google's public STUN servers
+                { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+                // Free STUN servers
+                { urls: ['stun:stun.stunprotocol.org:3478', 'stun:stun.voip.blackberry.com:3478'] },
+                // Twilio's STUN server
+                { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
+                // Free TURN servers (backup)
                 {
-                    urls: 'turn:numb.viagenie.ca',
-                    credential: 'muazkh',
-                    username: 'webrtc@live.com'
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
                 }
             ],
-            'iceTransportPolicy': 'all',
-            'sdpSemantics': 'unified-plan'
+            iceTransportPolicy: 'all',
+            iceCandidatePoolSize: 10,
+            bundlePolicy: 'max-bundle',
+            rtcpMuxPolicy: 'require',
+            sdpSemantics: 'unified-plan'
         },
+        host: 'free.metered.ca',
+        port: 443,
+        path: '/webrtc',
+        secure: true,
         debug: 2
     });
 
@@ -68,18 +89,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Setup media stream with fallback
     async function setupStream() {
+        const constraints = {
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 }
+            },
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+                sampleRate: 48000
+            }
+        };
+
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                }
-            });
+            localStream = await navigator.mediaDevices.getUserMedia(constraints);
             localVideo.srcObject = localStream;
             updateStatus('Waiting for partner...');
             return true;
@@ -89,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Try fallback constraints
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
+                    video: { width: 640, height: 480 },
                     audio: true
                 });
                 localVideo.srcObject = localStream;
@@ -255,15 +280,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Enhanced peer error handling
     peer.on('error', (err) => {
         console.error('Peer error:', err);
         if (err.type === 'peer-unavailable') {
             updateStatus('Room not available');
             setTimeout(() => window.location.href = 'index.html', 2000);
         } else if (err.type === 'network' || err.type === 'disconnected') {
-            retryConnection();
+            if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+                retryConnection();
+            } else {
+                updateStatus('Network connection failed. Please check your internet and try again.');
+                setTimeout(() => window.location.href = 'index.html', 3000);
+            }
+        } else if (err.type === 'server-error') {
+            updateStatus('Server error. Please try again in a few minutes.');
+            setTimeout(() => window.location.href = 'index.html', 3000);
         }
     });
+
+    // Improved connection monitoring
+    setInterval(() => {
+        if (currentCall && currentCall.peerConnection) {
+            const state = currentCall.peerConnection.iceConnectionState;
+            if (state === 'failed' || state === 'disconnected') {
+                retryConnection();
+            }
+        }
+    }, 5000);
 
     // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
