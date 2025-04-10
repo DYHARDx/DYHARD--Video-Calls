@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DYHARD - Instant HD Video Calling</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366F1;
+            --secondary: #4F46E5;
+            --accent: #EC4899;
+            --background: #030712;
+            --surface: #111827;
+            --text: #F8FAFC;
+            --neon-glow: 0 0 10px rgba(99, 102, 241, 0.5),
+                         0 0 20px rgba(99, 102, 241, 0.3),
+                         0 0 30px rgba(99, 102, 241, 0.2);
+            --neon-text: 0 0 10px rgba(236, 72, 153, 0.5),
+                        0 0 20px rgba(236, 72, 153, 0.3),
+                        0 0 30px rgba(236, 72, 153, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.15) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--background);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .logo {
+            font-size: 4.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: var(--neon-text);
+            animation: pulse 2s infinite;
+            letter-spacing: 2px;
+            position: relative;
+        }
+
+        .logo::after {
+            content: 'DYHARD';
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: transparent;
+            -webkit-text-stroke: 1px rgba(236, 72, 153, 0.3);
+            z-index: -1;
+            filter: blur(8px);
+            animation: pulse 2s infinite reverse;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .spinner {
+            margin-top: 2rem;
+            width: 60px;
+            height: 60px;
+            border: 3px solid transparent;
+            border-top: 3px solid var(--primary);
+            border-right: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            box-shadow: var(--neon-glow);
+            position: relative;
+        }
+
+        .spinner::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border: 3px solid transparent;
+            border-top: 3px solid rgba(99, 102, 241, 0.3);
+            border-radius: 50%;
+            animation: spin 2s linear infinite reverse;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        h1 {
+            font-size: 4rem;
+            margin: 2rem 0;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+            text-shadow: var(--neon-text);
+            position: relative;
+            display: inline-block;
+        }
+
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: lineGlow 2s infinite;
+        }
+
+        @keyframes lineGlow {
+            0% { width: 0; opacity: 0; }
+            50% { width: 150px; opacity: 1; }
+            100% { width: 0; opacity: 0; }
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: #94A3B8;
+            margin-bottom: 4rem;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.8s ease forwards;
+            animation-delay: 0.3s;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 1.2rem 3.5rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--neon-glow);
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.5),
+                       0 0 60px rgba(99, 102, 241, 0.3),
+                       0 0 90px rgba(99, 102, 241, 0.2);
+        }
+
+        .start-btn::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+
+        /* Password Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 7, 18, 0.9);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal.show {
+            opacity: 1;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: var(--surface);
+            padding: 3rem;
+            border-radius: 24px;
+            box-shadow: var(--neon-glow);
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .modal.show .modal-content {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #94A3B8;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .name-input,
+        .password-input {
+            width: 100%;
+            padding: 1.2rem;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            background: rgba(3, 7, 18, 0.8);
+            color: var(--text);
+            font-size: 1.1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .name-input:focus,
+        .password-input:focus {
+            border-color: var(--primary);
+            box-shadow: var(--neon-glow);
+        }
+
+        .name-input::placeholder,
+        .password-input::placeholder {
+            color: #4B5563;
+        }
+
+        .error-message {
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            display: none;
+            font-size: 1.1rem;
+            animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 3.5rem;
+            }
+
+            h1 {
+                font-size: 2.8rem;
+            }
+
+            .subtitle {
+                font-size: 1.2rem;
+                margin-bottom: 3rem;
+            }
+
+            .start-btn {
+                padding: 1rem 2.5rem;
+                font-size: 1.1rem;
+            }
+
+            .modal-content {
+                padding: 2rem;
+            }
+
+            .modal h2 {
+                font-size: 1.5rem;
+            }
+
+            .input-label {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="logo">DYHARD</div>
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container">
+        <h1>Connect Face to Face.<br>Instantly. Securely.</h1>
+        <p class="subtitle">No logins, no installs. Just share a room link and start calling.</p>
+        <button class="start-btn" onclick="startCall()">Start a Call</button>
+    </main>
+
+    <!-- Password Modal -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <h2>Join Video Call</h2>
+            <div class="input-group">
+                <label class="input-label" for="nameInput">Your Name</label>
+                <input type="text" id="nameInput" class="name-input" placeholder="Enter your name" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label class="input-label" for="passwordInput">Room Password</label>
+                <input type="password" id="passwordInput" class="password-input" placeholder="Enter password">
+            </div>
+            <div id="errorMessage" class="error-message">❌ Access Denied</div>
+            <button class="start-btn" onclick="verifyPassword()">Join Call</button>
+        </div>
+    </div>
+
+    <script>
+        // Loading screen animation
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loading-screen').style.opacity = '0';
+                document.querySelector('.container').classList.add('show');
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.display = 'none';
+                }, 500);
+            }, 1500);
+        });
+
+        let pendingRoomId = null;
+
+        // Generate unique room ID and show password modal
+        function startCall() {
+            pendingRoomId = Math.random().toString(36).substring(2, 15);
+            const modal = document.getElementById('passwordModal');
+            modal.style.display = 'block';
+            setTimeout(() => modal.classList.add('show'), 10);
+            document.getElementById('nameInput').focus();
+        }
+
+        // Verify password and redirect
+        function verifyPassword() {
+            const name = document.getElementById('nameInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            const errorMessage = document.getElementById('errorMessage');
+            
+            if (!name) {
+                errorMessage.textContent = '❌ Please enter your name';
+                errorMessage.style.display = 'block';
+                document.getElementById('nameInput').focus();
+                return;
+            }
+            
+            if (password === 'AmanP@108') {
+                window.location.href = `/room.html?room=${pendingRoomId}&name=${encodeURIComponent(name)}`;
+            } else {
+                errorMessage.textContent = '❌ Access Denied';
+                errorMessage.style.display = 'block';
+                document.getElementById('passwordInput').value = '';
+                document.getElementById('passwordInput').focus();
+            }
+        }
+
+        // Handle Enter key in inputs
+        document.getElementById('nameInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('passwordInput').focus();
+            }
+        });
+
+        document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                verifyPassword();
+            }
+        });
+
+        // Hide error message when typing
+        document.getElementById('nameInput').addEventListener('input', () => {
+            document.getElementById('errorMessage').style.display = 'none';
+        });
+
+        document.getElementById('passwordInput').addEventListener('input', () => {
+            document.getElementById('errorMessage').style.display = 'none';
+        });
+    </script>
+</body>
+</html>

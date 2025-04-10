@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DYHARD - Video Call</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00A884;
+            --secondary: #128C7E;
+            --background: #111B21;
+            --surface: #222E35;
+            --text: #E9EDEF;
+            --danger: #F15C6D;
+            --neon-glow: 0 0 10px rgba(0, 168, 132, 0.5),
+                         0 0 20px rgba(0, 168, 132, 0.3),
+                         0 0 30px rgba(0, 168, 132, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .call-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Remote Video (Full Screen) */
+        #remoteVideo {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        /* Local Video (Floating) */
+        .local-video-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            height: 158px;
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 3;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            cursor: move;
+        }
+
+        .local-video-container:hover {
+            transform: scale(1.02);
+        }
+
+        #localVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+        }
+
+        /* Waiting Message */
+        .waiting-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(34, 46, 53, 0.9);
+            padding: 1.5rem 2rem;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 2;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .waiting-message .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--surface);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Call Controls */
+        .controls {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1.5rem;
+            z-index: 3;
+            background: rgba(34, 46, 53, 0.9);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text);
+            position: relative;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .control-btn.active {
+            background: var(--primary);
+        }
+
+        .control-btn.end-call {
+            background: var(--danger);
+        }
+
+        .control-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* Tooltips */
+        .control-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 5px 10px;
+            background: rgba(34, 46, 53, 0.9);
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Room Info */
+        .room-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(34, 46, 53, 0.9);
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            backdrop-filter: blur(8px);
+        }
+
+        .room-id {
+            font-size: 0.9rem;
+            color: #94A3B8;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .local-video-container {
+                width: 120px;
+                height: 180px;
+                top: auto;
+                bottom: 120px;
+            }
+
+            .controls {
+                bottom: 20px;
+                padding: 0.75rem;
+                gap: 1rem;
+            }
+
+            .control-btn {
+                width: 48px;
+                height: 48px;
+            }
+
+            .room-info {
+                top: 10px;
+                left: 10px;
+                padding: 0.5rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="call-container">
+        <!-- Remote Video -->
+        <video id="remoteVideo" autoplay playsinline></video>
+
+        <!-- Local Video -->
+        <div class="local-video-container" id="localVideoContainer">
+            <video id="localVideo" autoplay muted playsinline></video>
+        </div>
+
+        <!-- Waiting Message -->
+        <div class="waiting-message" id="waitingMessage">
+            <div class="spinner"></div>
+            <div>Please wait... Aman Sir is coming 💜</div>
+        </div>
+
+        <!-- Room Info -->
+        <div class="room-info">
+            <span class="room-id" id="roomId"></span>
+            <button class="copy-btn" onclick="copyRoomLink()">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                </svg>
+                Copy Link
+            </button>
+        </div>
+
+        <!-- Call Controls -->
+        <div class="controls">
+            <button class="control-btn active" id="micBtn" onclick="toggleMic()" data-tooltip="Toggle Microphone">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                </svg>
+            </button>
+            <button class="control-btn active" id="videoBtn" onclick="toggleVideo()" data-tooltip="Toggle Camera">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+            </button>
+            <button class="control-btn end-call" onclick="endCall()" data-tooltip="End Call">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // Get room ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        document.getElementById('roomId').textContent = `Room: ${roomId}`;
+
+        // WebRTC configuration
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' }
+            ]
+        };
+
+        let localStream;
+        let peerConnection;
+        let socket;
+
+        // Make local video container draggable
+        const localVideoContainer = document.getElementById('localVideoContainer');
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        localVideoContainer.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+
+        function dragStart(e) {
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+
+            if (e.target === localVideoContainer) {
+                isDragging = true;
+            }
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+
+                xOffset = currentX;
+                yOffset = currentY;
+
+                setTranslate(currentX, currentY, localVideoContainer);
+            }
+        }
+
+        function dragEnd() {
+            isDragging = false;
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+        }
+
+        // Connect to signaling server
+        async function init() {
+            try {
+                // Get user media
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 1920, height: 1080 },
+                    audio: true
+                });
+                document.getElementById('localVideo').srcObject = localStream;
+
+                // Connect to signaling server
+                socket = io('http://localhost:3000');
+
+                // Join room
+                socket.emit('join', roomId);
+
+                // Handle signaling
+                socket.on('offer', handleOffer);
+                socket.on('answer', handleAnswer);
+                socket.on('ice-candidate', handleIceCandidate);
+                socket.on('user-joined', () => {
+                    createOffer();
+                    document.getElementById('waitingMessage').style.display = 'none';
+                });
+
+                // Create RTCPeerConnection
+                peerConnection = new RTCPeerConnection(configuration);
+
+                // Add local stream
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                // Handle remote stream
+                peerConnection.ontrack = event => {
+                    document.getElementById('remoteVideo').srcObject = event.streams[0];
+                    document.getElementById('waitingMessage').style.display = 'none';
+                };
+
+                // Handle ICE candidates
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        socket.emit('ice-candidate', {
+                            roomId,
+                            candidate: event.candidate
+                        });
+                    }
+                };
+
+            } catch (error) {
+                console.error('Error initializing:', error);
+            }
+        }
+
+        // Create and send offer
+        async function createOffer() {
+            try {
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                socket.emit('offer', { roomId, offer });
+            } catch (error) {
+                console.error('Error creating offer:', error);
+            }
+        }
+
+        // Handle incoming offer
+        async function handleOffer({ offer }) {
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('answer', { roomId, answer });
+            } catch (error) {
+                console.error('Error handling offer:', error);
+            }
+        }
+
+        // Handle incoming answer
+        async function handleAnswer({ answer }) {
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            } catch (error) {
+                console.error('Error handling answer:', error);
+            }
+        }
+
+        // Handle incoming ICE candidate
+        async function handleIceCandidate({ candidate }) {
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (error) {
+                console.error('Error handling ICE candidate:', error);
+            }
+        }
+
+        // Toggle microphone
+        function toggleMic() {
+            const micBtn = document.getElementById('micBtn');
+            const audioTrack = localStream.getAudioTracks()[0];
+            audioTrack.enabled = !audioTrack.enabled;
+            micBtn.classList.toggle('active');
+        }
+
+        // Toggle video
+        function toggleVideo() {
+            const videoBtn = document.getElementById('videoBtn');
+            const videoTrack = localStream.getVideoTracks()[0];
+            videoTrack.enabled = !videoTrack.enabled;
+            videoBtn.classList.toggle('active');
+        }
+
+        // Copy room link
+        function copyRoomLink() {
+            const link = window.location.href;
+            navigator.clipboard.writeText(link).then(() => {
+                const copyBtn = document.querySelector('.copy-btn');
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyBtn.innerHTML = `
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                        </svg>
+                        Copy Link
+                    `;
+                }, 2000);
+            });
+        }
+
+        // End call
+        function endCall() {
+            if (peerConnection) {
+                peerConnection.close();
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            window.location.href = '/';
+        }
+
+        // Initialize when page loads
+        init();
+    </script>
+</body>
+</html> 
