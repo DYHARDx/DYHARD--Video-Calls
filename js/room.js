@@ -44,9 +44,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize PeerJS
     const peer = new Peer(roomId, {
-        host: 'peerjs-server.herokuapp.com',
-        secure: true,
-        port: 443,
+        config: {
+            'iceServers': [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+            ]
+        },
         debug: 3
     });
 
@@ -122,8 +128,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const audioTracks = localStream.getAudioTracks();
             audioTracks.forEach(track => {
                 track.enabled = !track.enabled;
+                isMuted = !track.enabled;
             });
-            isMuted = !track.enabled;
             toggleMicBtn.innerHTML = isMuted ? 
                 '<i class="fas fa-microphone-slash"></i>' : 
                 '<i class="fas fa-microphone"></i>';
@@ -137,8 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const videoTracks = localStream.getVideoTracks();
             videoTracks.forEach(track => {
                 track.enabled = !track.enabled;
+                isCameraOff = !track.enabled;
             });
-            isCameraOff = !track.enabled;
             toggleCameraBtn.innerHTML = isCameraOff ? 
                 '<i class="fas fa-video-slash"></i>' : 
                 '<i class="fas fa-video"></i>';
