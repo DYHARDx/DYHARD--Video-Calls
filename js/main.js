@@ -7,18 +7,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.random().toString(36).substring(2, 12);
     }
 
-    // Create a new room and redirect to internal page
+    // Create a new room and redirect
     createRoomBtn.addEventListener('click', () => {
         const roomId = generateRoomId();
-        window.location.href = `room.html?room=${roomId}`;
+        window.location.href = `https://app.zoom.us/wc/join/${roomId}`;
     });
 
-    // Join Zoom room
+    // Join an existing room
     joinRoomBtn.addEventListener('click', () => {
-        const roomId = prompt('Enter Zoom Meeting ID:');
+        const roomId = prompt('Enter Room ID or link:');
         if (roomId) {
-            // Redirect to Zoom meeting join page
-            window.location.href = `https://app.zoom.us/wc/join/${roomId}`;
+            // Extract room ID if a full URL was pasted
+            const extractedRoomId = roomId.includes('?room=') 
+                ? roomId.split('?room=')[1] 
+                : roomId;
+            window.location.href = `room.html?room=${extractedRoomId}`;
         }
     });
-});
+}); 
